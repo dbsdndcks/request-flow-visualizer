@@ -1,0 +1,516 @@
+:root {
+    --bg: #f6f7f9;
+    --panel-bg: #ffffff;
+    --border: #e2e5ea;
+    --text: #1f2430;
+    --text-muted: #6b7280;
+    --text-faint: #9aa1ad;
+    --accent: #3b5bfd;
+    --accent-bg: #eef0ff;
+    --ok: #1a9e5c;
+    --ok-bg: #eaf7f0;
+    --warn: #b9790c;
+    --warn-bg: #fbf3e2;
+    --error: #d8395a;
+    --error-bg: #fbe6ea;
+    --val-string: #0f7a5c;
+    --val-number: #1b5fd6;
+    --val-boolean: #8a3fd6;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+}
+
+.app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--border);
+}
+
+.app-header h1 {
+    font-size: 15px;
+    margin: 0;
+    font-weight: 600;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.controls button {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel-bg);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.controls button:hover {
+    background: #f0f1f4;
+}
+
+.controls button.danger {
+    color: var(--error);
+    border-color: #f2c9d1;
+}
+
+.app-body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+.trace-list-panel {
+    width: 340px;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    background: var(--panel-bg);
+    flex-shrink: 0;
+}
+
+.trace-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.trace-list li {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.trace-list li:hover {
+    background: #f0f3ff;
+}
+
+.trace-list li.selected {
+    background: #e8edff;
+    border-left: 3px solid var(--accent);
+}
+
+.trace-list .row1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    gap: 8px;
+}
+
+.trace-list .row1 > span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trace-list .row2 {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-top: 4px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.trace-detail-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.empty-state {
+    color: var(--text-muted);
+}
+
+.empty-inline {
+    color: var(--text-faint);
+    font-size: 13px;
+    margin: 0;
+}
+
+/* ---------- 상단 메타 ---------- */
+
+.trace-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+
+.trace-meta code {
+    font-family: var(--mono);
+    background: var(--accent-bg);
+    color: var(--accent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.trace-path {
+    font-family: var(--mono);
+    color: var(--text);
+    font-size: 13px;
+}
+
+.trace-meta-sep {
+    color: var(--text-faint);
+}
+
+.method-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--accent-bg);
+    color: var(--accent);
+    letter-spacing: 0.02em;
+}
+
+.status-badge {
+    font-size: 12px;
+    color: var(--ok);
+    font-weight: 600;
+}
+
+.status-badge.error {
+    color: var(--error);
+}
+
+.root-label {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin: 18px 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.root-label:first-child {
+    margin-top: 0;
+}
+
+/* ---------- 노드 트리 ---------- */
+
+.node {
+    margin-left: 20px;
+    border-left: 2px solid var(--border);
+    padding-left: 14px;
+    margin-top: 10px;
+}
+
+.node.root {
+    margin-left: 0;
+    border-left: none;
+    padding-left: 0;
+    margin-top: 0;
+}
+
+.node-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    transition: border-color 0.1s ease;
+}
+
+.node-header:hover {
+    border-color: var(--accent);
+}
+
+.node-toggle {
+    color: var(--text-faint);
+    font-size: 10px;
+    width: 10px;
+    flex-shrink: 0;
+    transition: transform 0.1s ease;
+}
+
+.node.expanded > .node-header > .node-toggle {
+    transform: rotate(90deg);
+}
+
+.node-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.node-class {
+    color: var(--text-muted);
+}
+
+.node-dot {
+    color: var(--text-faint);
+}
+
+.node-method {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.node-duration {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: var(--ok-bg);
+    color: var(--ok);
+}
+
+.node-duration.warn {
+    background: var(--warn-bg);
+    color: var(--warn);
+}
+
+.node-duration.slow {
+    background: var(--error-bg);
+    color: var(--error);
+}
+
+.node-exception-badge {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: var(--error-bg);
+    color: var(--error);
+    letter-spacing: 0.02em;
+}
+
+.node-body {
+    display: none;
+    margin-top: 8px;
+    padding: 14px 16px;
+    background: #fafbfc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.node-body.open {
+    display: block;
+}
+
+.node-children {
+    margin-top: 2px;
+}
+
+/* ---------- 노드 상세: 섹션 ---------- */
+
+.section {
+    margin-bottom: 14px;
+}
+
+.section:last-child {
+    margin-bottom: 0;
+}
+
+.section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+}
+
+.section-label-error {
+    color: var(--error);
+}
+
+.fqcn {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    word-break: break-all;
+}
+
+/* ---------- Args / Return ---------- */
+
+.args-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.arg-item {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.arg-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.arg-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.type-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.truncated-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--warn);
+    background: var(--warn-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.value-slot {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+}
+
+/* ---------- 값 트리 (JSON 필드별 렌더링) ---------- */
+
+.val-tree {
+    margin-left: 4px;
+    padding-left: 10px;
+    border-left: 1px solid var(--border);
+}
+
+.kv-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 1px 0;
+}
+
+.kv-key {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.kv-key::after {
+    content: ":";
+    color: var(--text-faint);
+}
+
+.kv-index {
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+.val {
+    word-break: break-word;
+}
+
+.val-string {
+    color: var(--val-string);
+}
+
+.val-number {
+    color: var(--val-number);
+}
+
+.val-boolean {
+    color: var(--val-boolean);
+    font-weight: 600;
+}
+
+.val-null {
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+.val-empty {
+    color: var(--text-faint);
+}
+
+.val-masked {
+    display: inline-block;
+    font-family: -apple-system, sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--warn);
+    background: var(--warn-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+/* ---------- Exception ---------- */
+
+.exception-block {
+    background: var(--error-bg);
+    border: 1px solid #f2c9d1;
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.exception-type {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--error);
+}
+
+.exception-message {
+    font-size: 13px;
+    color: var(--text);
+    margin-top: 2px;
+}
+
+.exception-stack {
+    margin: 8px 0 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
