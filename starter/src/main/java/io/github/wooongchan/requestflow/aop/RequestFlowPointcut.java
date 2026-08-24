@@ -1,5 +1,6 @@
 package io.github.wooongchan.requestflow.aop;
 
+import io.github.wooongchan.requestflow.annotation.DeepTrace;
 import org.springframework.aop.ClassFilter;
 import org.springframework.aop.MethodMatcher;
 import org.springframework.aop.Pointcut;
@@ -66,6 +67,11 @@ public class RequestFlowPointcut implements Pointcut {
     }
 
     private boolean matchesClass(Class<?> clazz) {
+        // @DeepTrace 클래스는 ByteBuddy 바이트코드 재정의로 self-invocation까지 통째로 계측한다.
+        // 여기서도 프록시를 씌우면 진입 호출이 두 경로(프록시+바이트코드)로 중복 계측된다.
+        if (AnnotatedElementUtils.hasAnnotation(clazz, DeepTrace.class)) {
+            return false;
+        }
         // JDK 동적 프록시 클래스는 항상 final이지만 Spring이 알아서 JDK 프록시로 다시 감싸므로 안전하다.
         // 그 외의 final 클래스(record 등)는 CGLIB 서브클래싱이 불가능해 프록시 생성 자체가 실패한다.
         if (Modifier.isFinal(clazz.getModifiers()) && !Proxy.isProxyClass(clazz)) {

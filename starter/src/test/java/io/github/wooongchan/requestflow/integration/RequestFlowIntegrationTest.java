@@ -101,4 +101,60 @@ class RequestFlowIntegrationTest {
         assertThat(handlerRoot.getClassName()).endsWith("FixtureExceptionHandler");
         assertThat(handlerRoot.getReturnValue().getValue().get("body").asText()).isEqualTo("handled: boom");
     }
+
+    @Test
+    void capturesSelfInvocationForDeepTraceAnnotatedClass() throws Exception {
+        traceRingBuffer.clear();
+
+        mockMvc.perform(get("/api/deep/hello"))
+                .andExpect(status().isOk());
+
+        List<TraceSummary> summaries = traceRingBuffer.list(10);
+        assertThat(summaries).hasSize(1);
+
+        TraceRecord record = traceRingBuffer.findById(summaries.get(0).traceId()).orElseThrow();
+        assertThat(record.getRoots()).hasSize(1);
+
+        TraceNode controllerNode = record.getRoots().get(0);
+        assertThat(controllerNode.getClassName()).endsWith("DeepTraceController");
+        assertThat(controllerNode.getChildren()).hasSize(1);
+
+        // DeepTracedService는 @DeepTrace가 붙어 있어 프록시가 아니라 ByteBuddy로 계측된다 —
+        // 클래스명이 프록시가 아니라 실제 클래스 그대로 나와야 한다.
+        TraceNode processNode = controllerNode.getChildren().get(0);
+        assertThat(processNode.getClassName()).isEqualTo(
+                "io.github.wooongchan.requestflow.integration.fixture.DeepTracedService");
+        assertThat(processNode.getMethodName()).isEqualTo("process");
+        assertThat(processNode.getReturnValue().getValue().asText()).isEqualTo("processed:hello");
+
+        // validate()/transform()은 private 메서드 self-invocation인데도 자식 노드로 잡혀야 한다.
+        assertThat(processNode.getChildren()).hasSize(2);
+        TraceNode validateNode = processNode.getChildren().get(0);
+        assertThat(validateNode.getMethodName()).isEqualTo("validate");
+        TraceNode transformNode = processNode.getChildren().get(1);
+        assertThat(transformNode.getMethodName()).isEqualTo("transform");
+        assertThat(transformNode.getReturnValue().getValue().asText()).isEqualTo("processed:hello");
+    }
+
+    @Test
+    void capturesExceptionThrownFromSelfInvokedPrivateMethod() throws Exception {
+        traceRingBuffer.clear();
+
+        mockMvc.perform(get("/api/deep/boom"))
+                .andExpect(status().isInternalServerError());
+
+        List<TraceSummary> summaries = traceRingBuffer.list(10);
+        assertThat(summaries).hasSize(1);
+
+        TraceRecord record = traceRingBuffer.findById(summaries.get(0).traceId()).orElseThrow();
+        TraceNode controllerNode = record.getRoots().get(0);
+        TraceNode processNode = controllerNode.getChildren().get(0);
+        assertThat(processNode.getException()).isNotNull();
+        assertThat(processNode.getException().getType()).endsWith("IllegalStateException");
+
+        TraceNode validateNode = processNode.getChildren().get(0);
+        assertThat(validateNode.getMethodName()).isEqualTo("validate");
+        assertThat(validateNode.getException()).isNotNull();
+        assertThat(validateNode.getException().getMessage()).isEqualTo("boom");
+    }
 }

@@ -22,6 +22,11 @@ dependencies {
     compileOnly("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     compileOnly("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
 
+    // @DeepTrace(self-invocation 계측)는 런타임 클래스 재정의가 필요해서, 호스트 클래스패스에
+    // 이미 있는 jackson/spring-web과 달리 실제로 셰이딩 없이 그대로 딸려가는 진짜 런타임 의존성이다.
+    implementation("net.bytebuddy:byte-buddy:1.14.18")
+    implementation("net.bytebuddy:byte-buddy-agent:1.14.18")
+
     testImplementation("org.springframework.boot:spring-boot-starter-web")
     testImplementation("org.springframework.boot:spring-boot-starter-aop")
     testImplementation("org.springframework.boot:spring-boot-starter-test")

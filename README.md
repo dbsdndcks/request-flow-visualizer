@@ -19,14 +19,25 @@ Repository** 호출 흐름을, Swagger UI처럼 브라우저에서 시각적인 
 
 ### 1-1. 의존성 추가
 
-아직 Maven Central에는 배포하지 않았으므로, 우선 로컬(`mavenLocal()`)에 배포해서 사용합니다.
-(공개 배포 방법은 "2. 공유법" 참고)
+GitHub에 공개된 저장소를 JitPack이 빌드해주므로, 별도 배포 없이 바로 가져다 쓸 수 있습니다
+(JitPack이 처음 요청을 받으면 그 태그를 빌드하는 데 1~2분 정도 걸릴 수 있습니다).
+
+```kotlin
+repositories {
+    maven { url = uri("https://jitpack.io") }
+    mavenCentral()
+}
+
+dependencies {
+    implementation("com.github.dbsdndcks:request-flow-visualizer:v0.2.0")
+}
+```
+
+로컬에서 라이브러리 자체를 수정하며 개발 중이라면 `mavenLocal()`이 더 빠릅니다:
 
 ```bash
 JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew :request-flow-visualizer-spring-boot-starter:publishToMavenLocal
 ```
-
-호스트 프로젝트(`build.gradle.kts`)에서:
 
 ```kotlin
 repositories {
@@ -35,7 +46,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.wooongchan:request-flow-visualizer-spring-boot-starter:0.1.0-SNAPSHOT")
+    implementation("io.github.wooongchan:request-flow-visualizer-spring-boot-starter:0.2.0")
 }
 ```
 
@@ -69,10 +80,40 @@ request-flow:
 왼쪽에서 최근 요청을 고르면 오른쪽에 Controller→Service→Repository 트리가 펼쳐지고, 각 노드를 클릭하면
 파라미터/리턴값/예외 정보를 볼 수 있습니다.
 
-### 1-4. 알려진 한계
+### 1-4. `@DeepTrace` — 클래스 내부 호출(self-invocation)까지 보기
 
-- **Self-invocation 미포집**: 같은 클래스 안에서 `this.method()`로 호출하면 AOP 프록시를 거치지 않아
-  잡히지 않습니다.
+기본 계측은 Spring AOP 프록시 기반이라 같은 클래스 안에서 `this.method()`로 부르는 내부 호출은
+잡히지 않습니다. 내부 흐름까지 보고 싶은 클래스에는 `@DeepTrace`를 붙이세요 — 프로덕션 코드 변경은
+이 애노테이션 한 줄이 전부입니다.
+
+```java
+import io.github.wooongchan.requestflow.annotation.DeepTrace;
+
+@DeepTrace
+@Service
+public class UserService {
+    public void doSomething() {
+        validate(); // this.validate() — 애노테이션 없이는 안 잡히던 내부 호출도 계측됨
+    }
+    private void validate() { ... }
+}
+```
+
+동작 방식: 앱 기동 시 `@DeepTrace` 클래스가 하나라도 있으면 ByteBuddy 에이전트를 self-attach해서
+(별도 `-javaagent` 플래그 불필요) 해당 클래스의 바이트코드를 재정의합니다 — private 메서드를 포함한
+모든 인스턴스 메서드 호출이 계측 대상이 됩니다. 그래서:
+
+- `@DeepTrace` 클래스는 일반 프록시 기반 계측에서는 제외됩니다(중복 계측 방지). 진입 호출부터 내부
+  호출까지 전부 바이트코드 계측 경로 하나로 통일됩니다.
+- self-attach는 JDK 배포판/실행 환경에 따라 실패할 수 있습니다 — 실패해도 앱 기동은 막지 않고,
+  경고 로그만 남긴 채 `@DeepTrace` 없이(빈 경계 계측은 그대로) 정상 동작합니다.
+- 이 기능 때문에 `starter`는 처음으로 실제 런타임 의존성(`net.bytebuddy:byte-buddy`,
+  `byte-buddy-agent`)을 갖습니다(그 전까지는 jackson/spring-web 등에 전부 `compileOnly`로만
+  얹혀가서 런타임 의존성이 0개였습니다).
+- static 메서드, 생성자, `equals`/`hashCode`/`toString`은 계측 대상에서 제외됩니다.
+
+### 1-5. 그 외 알려진 한계
+
 - **`@Async`/WebFlux 미지원**: 스레드가 바뀌는 실행 경로에는 traceId가 전파되지 않습니다.
 - **Spring MVC 비동기(`Callable`/`DeferredResult`) 미지원**.
 - **운영 환경**: 계측 자체가 오버헤드이므로 `request-flow.enabled=false`로 끄거나, 아래처럼 의존성 자체를
@@ -87,34 +128,36 @@ configurations.implementation.get().extendsFrom(localImplementation)
 
 ## 2. 공유법
 
-로컬에서만 쓰는 게 아니라 팀/외부에 공유하려면 아래 중 상황에 맞는 방법을 선택하세요. 난이도 순입니다.
+**현재 상태: GitHub에 공개(public) 저장소로 push되어 있고, JitPack으로 배포 중입니다**
+(https://github.com/dbsdndcks/request-flow-visualizer, 태그 `v0.2.0`). 위 "1-1. 의존성 추가"의
+JitPack 좌표를 그대로 쓰면 됩니다. 아래는 참고용 대안입니다.
 
-### 2-1. `mavenLocal()` — 지금 바로, 같은 컴퓨터/팀원 각자 로컬에서
+### 2-1. JitPack — 지금 쓰는 방식
 
-가장 빠르지만 각자 `publishToMavenLocal`을 실행해야 합니다. 소규모 팀 내부 실험 단계에 적합합니다.
+새 버전을 배포하려면 태그만 새로 만들어서 push하면 됩니다 (별도 배포 서버/계정 불필요, JitPack이
+태그를 보고 자동으로 빌드):
+
+```bash
+git tag v0.3.0
+git push origin v0.3.0
+```
+
+소비하는 프로젝트는 버전만 바꿔서 받으면 됩니다:
+
+```kotlin
+implementation("com.github.dbsdndcks:request-flow-visualizer:v0.3.0")
+```
+
+### 2-2. `mavenLocal()` — 라이브러리 자체를 수정 중일 때
+
+각자 `publishToMavenLocal`을 실행해야 하지만, JitPack의 빌드 대기시간 없이 바로 반영됩니다.
+라이브러리 코드를 고치면서 바로 테스트할 때 유용합니다.
 
 ```bash
 ./gradlew :request-flow-visualizer-spring-boot-starter:publishToMavenLocal
 ```
 
-### 2-2. JitPack — 가장 빠른 "진짜 공유" (권장, 별도 계정/서버 불필요)
-
-1. 이 프로젝트를 GitHub에 push하고 태그(예: `v0.1.0`)를 만듭니다.
-2. 소비하는 프로젝트에서:
-
-```kotlin
-repositories {
-    maven { url = uri("https://jitpack.io") }
-}
-dependencies {
-    implementation("com.github.<github-id>:request-flow-visualizer:v0.1.0")
-}
-```
-
-JitPack이 태그를 보고 자동으로 빌드/배포해줍니다. 별도 배포 인프라나 계정 설정이 필요 없어 사내 공유에
-가장 실용적입니다.
-
-### 2-3. GitHub Packages — 사내에 GitHub Enterprise/Org를 이미 쓰는 경우
+### 2-3. GitHub Packages — private을 유지해야 하는 경우
 
 `starter/build.gradle.kts`의 `publishing.repositories`에 GitHub Packages 저장소를 추가하고
 `GITHUB_TOKEN`으로 인증합니다. 소비자도 GitHub 인증 토큰이 있어야 `implementation`으로 받을 수 있어

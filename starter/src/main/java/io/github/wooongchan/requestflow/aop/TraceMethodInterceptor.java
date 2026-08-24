@@ -1,20 +1,15 @@
 package io.github.wooongchan.requestflow.aop;
 
+import io.github.wooongchan.requestflow.capture.ArgSnapshotBuilder;
 import io.github.wooongchan.requestflow.capture.ValueSerializer;
-import io.github.wooongchan.requestflow.model.ArgSnapshot;
 import io.github.wooongchan.requestflow.model.ExceptionSnapshot;
 import io.github.wooongchan.requestflow.model.TraceNode;
-import io.github.wooongchan.requestflow.model.ValueSnapshot;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.util.ClassUtils;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.lang.reflect.Proxy;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * 계측 대상 빈 호출을 감싸는 Around 어드바이스.
@@ -40,7 +35,7 @@ public class TraceMethodInterceptor implements MethodInterceptor {
         String className = resolveClassName(invocation, method);
 
         TraceNode node = TraceContext.pushNode(className, method.getName(),
-                buildArgs(method, invocation.getArguments()));
+                ArgSnapshotBuilder.build(method, invocation.getArguments(), valueSerializer));
         long startNanos = System.nanoTime();
         try {
             Object result = invocation.proceed();
@@ -68,20 +63,5 @@ public class TraceMethodInterceptor implements MethodInterceptor {
             }
         }
         return method.getDeclaringClass().getName();
-    }
-
-    private List<ArgSnapshot> buildArgs(Method method, Object[] rawArgs) {
-        if (rawArgs.length == 0) {
-            return List.of();
-        }
-        Parameter[] parameters = method.getParameters();
-        Type[] genericTypes = method.getGenericParameterTypes();
-        List<ArgSnapshot> args = new ArrayList<>(rawArgs.length);
-        for (int i = 0; i < rawArgs.length; i++) {
-            String name = parameters[i].isNamePresent() ? parameters[i].getName() : "arg" + i;
-            ValueSnapshot snapshot = valueSerializer.serialize(rawArgs[i], genericTypes[i]);
-            args.add(new ArgSnapshot(name, snapshot.getType(), snapshot.getValue(), snapshot.isTruncated()));
-        }
-        return args;
     }
 }
