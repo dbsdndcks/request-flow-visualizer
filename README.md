@@ -30,7 +30,12 @@ Repository** 호출 흐름을, Swagger UI처럼 브라우저에서 시각적인 
 ### 1-1. 의존성 추가
 
 GitHub에 공개된 저장소를 JitPack이 빌드해주므로, 별도 배포 없이 바로 가져다 쓸 수 있습니다
-(JitPack이 처음 요청을 받으면 그 태그를 빌드하는 데 1~2분 정도 걸릴 수 있습니다).
+(JitPack이 처음 요청을 받으면 그 태그를 빌드하는 데 1~2분 정도 걸릴 수 있습니다). 모듈이
+`core`/`starter-boot3`/`starter-boot2` 셋으로 나뉘면서, JitPack 좌표도 `com.github.<유저>.<레포>:
+<모듈 artifactId>:<태그>` 형태로 모듈별로 잡힙니다(`core`는 각 스타터의 POM에 전이 의존성으로
+이미 선언돼 있어서 따로 추가할 필요 없습니다).
+
+**Spring Boot 3.x / Java 17+:**
 
 ```kotlin
 repositories {
@@ -39,14 +44,24 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.dbsdndcks:request-flow-visualizer:v0.2.0")
+    implementation("com.github.dbsdndcks.request-flow-visualizer:request-flow-visualizer-spring-boot-starter:v0.3.0")
+}
+```
+
+**Spring Boot 2.6.x / Java 8+:** (사용법은 동일, 좌표만 다름)
+
+```kotlin
+dependencies {
+    implementation("com.github.dbsdndcks.request-flow-visualizer:request-flow-visualizer-spring-boot2-starter:v0.3.0")
 }
 ```
 
 로컬에서 라이브러리 자체를 수정하며 개발 중이라면 `mavenLocal()`이 더 빠릅니다:
 
 ```bash
-JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew :request-flow-visualizer-spring-boot-starter:publishToMavenLocal
+JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew :request-flow-visualizer-core:publishToMavenLocal \
+    :request-flow-visualizer-spring-boot-starter:publishToMavenLocal \
+    :request-flow-visualizer-spring-boot2-starter:publishToMavenLocal
 ```
 
 ```kotlin
@@ -56,30 +71,10 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.wooongchan:request-flow-visualizer-spring-boot-starter:0.2.0")
-}
-```
-
-> **주의**: JitPack의 `v0.2.0` 태그는 core/starter-boot2 분리 이전 버전입니다. Spring Boot 2.6
-> 지원이 필요하면 아직은 위 `mavenLocal()` 방식으로만 받을 수 있고, 분리된 구조로 새 태그를 찍은
-> 뒤에 JitPack 좌표도 이 문서에 갱신할 예정입니다.
-
-### 1-1-b. Spring Boot 2.6.x / Java 8+ 프로젝트라면
-
-좌표만 다르고 사용법(설정/애노테이션)은 완전히 동일합니다. 지금은 mavenLocal로만 받을 수 있습니다:
-
-```bash
-JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew :request-flow-visualizer-spring-boot2-starter:publishToMavenLocal
-```
-
-```kotlin
-repositories {
-    mavenLocal()
-    mavenCentral()
-}
-
-dependencies {
-    implementation("io.github.wooongchan:request-flow-visualizer-spring-boot2-starter:0.2.0")
+    // Boot 3.x
+    implementation("io.github.wooongchan:request-flow-visualizer-spring-boot-starter:0.3.0")
+    // 또는 Boot 2.6.x
+    // implementation("io.github.wooongchan:request-flow-visualizer-spring-boot2-starter:0.3.0")
 }
 ```
 
@@ -162,7 +157,7 @@ configurations.implementation.get().extendsFrom(localImplementation)
 ## 2. 공유법
 
 **현재 상태: GitHub에 공개(public) 저장소로 push되어 있고, JitPack으로 배포 중입니다**
-(https://github.com/dbsdndcks/request-flow-visualizer, 태그 `v0.2.0`). 위 "1-1. 의존성 추가"의
+(https://github.com/dbsdndcks/request-flow-visualizer, 태그 `v0.3.0`). 위 "1-1. 의존성 추가"의
 JitPack 좌표를 그대로 쓰면 됩니다. 아래는 참고용 대안입니다.
 
 ### 2-1. JitPack — 지금 쓰는 방식
@@ -171,14 +166,15 @@ JitPack 좌표를 그대로 쓰면 됩니다. 아래는 참고용 대안입니�
 태그를 보고 자동으로 빌드):
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.4.0
+git push origin v0.4.0
 ```
 
-소비하는 프로젝트는 버전만 바꿔서 받으면 됩니다:
+소비하는 프로젝트는 버전만 바꿔서 받으면 됩니다(모듈이 여러 개라 좌표 형태는 "1-1. 의존성 추가"
+참고):
 
 ```kotlin
-implementation("com.github.dbsdndcks:request-flow-visualizer:v0.3.0")
+implementation("com.github.dbsdndcks.request-flow-visualizer:request-flow-visualizer-spring-boot-starter:v0.4.0")
 ```
 
 ### 2-2. `mavenLocal()` — 라이브러리 자체를 수정 중일 때
@@ -187,12 +183,14 @@ implementation("com.github.dbsdndcks:request-flow-visualizer:v0.3.0")
 라이브러리 코드를 고치면서 바로 테스트할 때 유용합니다.
 
 ```bash
-./gradlew :request-flow-visualizer-spring-boot-starter:publishToMavenLocal
+./gradlew :request-flow-visualizer-core:publishToMavenLocal \
+    :request-flow-visualizer-spring-boot-starter:publishToMavenLocal \
+    :request-flow-visualizer-spring-boot2-starter:publishToMavenLocal
 ```
 
 ### 2-3. GitHub Packages — private을 유지해야 하는 경우
 
-`starter/build.gradle.kts`의 `publishing.repositories`에 GitHub Packages 저장소를 추가하고
+각 스타터 모듈의 `build.gradle.kts`의 `publishing.repositories`에 GitHub Packages 저장소를 추가하고
 `GITHUB_TOKEN`으로 인증합니다. 소비자도 GitHub 인증 토큰이 있어야 `implementation`으로 받을 수 있어
 JitPack보다 설정이 한 단계 더 필요합니다.
 
