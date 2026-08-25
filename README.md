@@ -12,8 +12,18 @@ Repository** 호출 흐름을, Swagger UI처럼 브라우저에서 시각적인 
 
 ## 모듈 구성
 
-- `starter/` → `request-flow-visualizer-spring-boot-starter`: 실제 배포되는 라이브러리
-- `sample-app/`: 동작을 눈으로 확인할 수 있는 데모 앱 (Order Controller→Service→Repository)
+- `core/` → `request-flow-visualizer-core`: 모델/직렬화/AOP 포인트컷/`@DeepTrace` 계측 등 Spring Boot
+  버전과 무관한 공통 로직 (Java 8 타깃, javax/jakarta.servlet 어느 쪽에도 컴파일 의존성 없음).
+  두 스타터가 공통으로 의존하는 내부 모듈 — 직접 의존성으로 추가할 일은 없음.
+- `starter-boot3/` → `request-flow-visualizer-spring-boot-starter`: **Spring Boot 3.x / Java 17+**용
+  스타터. `jakarta.servlet` 기반 Filter + `@AutoConfiguration` 등록.
+- `starter-boot2/` → `request-flow-visualizer-spring-boot2-starter`: **Spring Boot 2.6.x / Java 8+**용
+  스타터. `javax.servlet` 기반 Filter + `spring.factories` 등록.
+- `sample-app/`: 동작을 눈으로 확인할 수 있는 데모 앱 (Order Controller→Service→Repository, Boot 3 기준)
+
+두 스타터 모두 패키지·클래스명이 완전히 동일합니다(`io.github.wooongchan.requestflow.*`) — 어느 쪽을
+쓰든 애플리케이션 코드(예: `@DeepTrace` import)는 똑같고, 좌표만 프로젝트의 Spring Boot 버전에 맞는
+쪽으로 고르면 됩니다.
 
 ## 1. 적용법
 
@@ -47,6 +57,29 @@ repositories {
 
 dependencies {
     implementation("io.github.wooongchan:request-flow-visualizer-spring-boot-starter:0.2.0")
+}
+```
+
+> **주의**: JitPack의 `v0.2.0` 태그는 core/starter-boot2 분리 이전 버전입니다. Spring Boot 2.6
+> 지원이 필요하면 아직은 위 `mavenLocal()` 방식으로만 받을 수 있고, 분리된 구조로 새 태그를 찍은
+> 뒤에 JitPack 좌표도 이 문서에 갱신할 예정입니다.
+
+### 1-1-b. Spring Boot 2.6.x / Java 8+ 프로젝트라면
+
+좌표만 다르고 사용법(설정/애노테이션)은 완전히 동일합니다. 지금은 mavenLocal로만 받을 수 있습니다:
+
+```bash
+JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew :request-flow-visualizer-spring-boot2-starter:publishToMavenLocal
+```
+
+```kotlin
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    implementation("io.github.wooongchan:request-flow-visualizer-spring-boot2-starter:0.2.0")
 }
 ```
 
